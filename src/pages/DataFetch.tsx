@@ -1,9 +1,13 @@
+import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PlatformCard } from '@/components/data-fetch/PlatformCard';
+import { NewsSourceTable, NewsSource } from '@/components/data-fetch/NewsSourceTable';
+import { useToast } from '@/hooks/use-toast';
 
 const platforms = [
   {
     name: 'Facebook',
+    platformKey: 'facebook' as const,
     icon: <span className="text-2xl font-bold text-white">f</span>,
     color: 'bg-blue-600',
     placeholder: 'https://facebook.com/pagename หรือชื่อเพจ',
@@ -11,6 +15,7 @@ const platforms = [
   },
   {
     name: 'X (Twitter)',
+    platformKey: 'twitter' as const,
     icon: <span className="text-2xl font-bold text-white">𝕏</span>,
     color: 'bg-neutral-800',
     placeholder: 'https://x.com/username หรือ @username',
@@ -18,6 +23,7 @@ const platforms = [
   },
   {
     name: 'TikTok',
+    platformKey: 'tiktok' as const,
     icon: <span className="text-2xl font-bold text-white">♪</span>,
     color: 'bg-gradient-to-r from-pink-500 to-cyan-500',
     placeholder: 'https://tiktok.com/@username หรือชื่อบัญชี',
@@ -25,6 +31,7 @@ const platforms = [
   },
   {
     name: 'Pantip',
+    platformKey: 'pantip' as const,
     icon: <span className="text-2xl font-bold text-white">P</span>,
     color: 'bg-purple-600',
     placeholder: 'https://pantip.com/topic/xxxxx หรือ Room',
@@ -32,7 +39,102 @@ const platforms = [
   },
 ];
 
+// Initial mock data
+const initialSources: NewsSource[] = [
+  {
+    id: '1',
+    platform: 'facebook',
+    name: 'ข่าวสารชาวบ้าน',
+    url: 'https://facebook.com/khaoban',
+    status: 'active',
+    postsScanned: 1234,
+    lastSync: '2 นาทีที่แล้ว',
+    addedAt: '2024-01-10',
+  },
+  {
+    id: '2',
+    platform: 'twitter',
+    name: '@NewsUpdate24',
+    url: 'https://x.com/newsupdate24',
+    status: 'syncing',
+    postsScanned: 567,
+    lastSync: 'กำลังซิงค์...',
+    addedAt: '2024-01-12',
+  },
+  {
+    id: '3',
+    platform: 'tiktok',
+    name: 'ข่าวด่วนTH',
+    url: 'https://tiktok.com/@khaoduan_th',
+    status: 'active',
+    postsScanned: 89,
+    lastSync: '15 นาทีที่แล้ว',
+    addedAt: '2024-01-14',
+  },
+];
+
 const DataFetch = () => {
+  const [sources, setSources] = useState<NewsSource[]>(initialSources);
+  const { toast } = useToast();
+
+  const handleAddSource = (newSource: Omit<NewsSource, 'id'>) => {
+    const id = Date.now().toString();
+    setSources(prev => [...prev, { ...newSource, id }]);
+
+    // Simulate sync completion after 3 seconds
+    setTimeout(() => {
+      setSources(prev => prev.map(s => 
+        s.id === id 
+          ? { 
+              ...s, 
+              status: 'active' as const, 
+              lastSync: 'เมื่อสักครู่',
+              postsScanned: Math.floor(Math.random() * 500) + 50
+            }
+          : s
+      ));
+    }, 3000);
+  };
+
+  const handleUpdateSource = (id: string, data: Partial<NewsSource>) => {
+    setSources(prev => prev.map(s => s.id === id ? { ...s, ...data } : s));
+  };
+
+  const handleDeleteSource = (id: string) => {
+    setSources(prev => prev.filter(s => s.id !== id));
+  };
+
+  const handleRefreshSource = (id: string) => {
+    setSources(prev => prev.map(s => 
+      s.id === id 
+        ? { ...s, status: 'syncing' as const, lastSync: 'กำลังซิงค์...' }
+        : s
+    ));
+    
+    toast({
+      title: "กำลังซิงค์ข้อมูล",
+      description: "ระบบกำลังดึงข้อมูลล่าสุด",
+    });
+
+    // Simulate sync completion
+    setTimeout(() => {
+      setSources(prev => prev.map(s => 
+        s.id === id 
+          ? { 
+              ...s, 
+              status: 'active' as const, 
+              lastSync: 'เมื่อสักครู่',
+              postsScanned: s.postsScanned + Math.floor(Math.random() * 50) + 10
+            }
+          : s
+      ));
+      toast({
+        title: "ซิงค์สำเร็จ",
+        description: "ดึงข้อมูลล่าสุดเรียบร้อยแล้ว",
+      });
+    }, 2000);
+  };
+
   return (
     <MainLayout 
       title="ดึงข้อมูลข่าวสาร" 
@@ -48,9 +150,21 @@ const DataFetch = () => {
 
         <div className="grid md:grid-cols-2 gap-6">
           {platforms.map((platform) => (
-            <PlatformCard key={platform.name} {...platform} />
+            <PlatformCard 
+              key={platform.name} 
+              {...platform}
+              onAdd={handleAddSource}
+            />
           ))}
         </div>
+
+        {/* News Sources Table */}
+        <NewsSourceTable
+          sources={sources}
+          onUpdate={handleUpdateSource}
+          onDelete={handleDeleteSource}
+          onRefresh={handleRefreshSource}
+        />
       </div>
     </MainLayout>
   );

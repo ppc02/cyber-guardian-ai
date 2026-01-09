@@ -5,23 +5,29 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import type { NewsSource } from './NewsSourceTable';
 
 interface PlatformCardProps {
   name: string;
+  platformKey: 'facebook' | 'twitter' | 'tiktok' | 'pantip';
   icon: React.ReactNode;
   color: string;
   placeholder: string;
   description: string;
+  onAdd: (source: Omit<NewsSource, 'id'>) => void;
 }
 
 export const PlatformCard = ({ 
   name, 
+  platformKey,
   icon, 
   color, 
   placeholder, 
-  description 
+  description,
+  onAdd,
 }: PlatformCardProps) => {
   const [url, setUrl] = useState('');
+  const [pageName, setPageName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -34,13 +40,36 @@ export const PlatformCard = ({
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 2000));
     
+    const newSource: Omit<NewsSource, 'id'> = {
+      platform: platformKey,
+      name: pageName.trim() || extractNameFromUrl(url),
+      url: url.trim(),
+      status: 'syncing',
+      postsScanned: 0,
+      lastSync: 'กำลังซิงค์...',
+      addedAt: new Date().toISOString(),
+    };
+
+    onAdd(newSource);
+    
     toast({
       title: "เพิ่มแหล่งข้อมูลสำเร็จ",
       description: `กำลังดึงข้อมูลจาก ${name}`,
     });
     
     setUrl('');
+    setPageName('');
     setIsLoading(false);
+  };
+
+  const extractNameFromUrl = (inputUrl: string): string => {
+    try {
+      const url = new URL(inputUrl.startsWith('http') ? inputUrl : `https://${inputUrl}`);
+      const pathParts = url.pathname.split('/').filter(Boolean);
+      return pathParts[0] || url.hostname;
+    } catch {
+      return inputUrl.slice(0, 30);
+    }
   };
 
   return (
@@ -60,16 +89,28 @@ export const PlatformCard = ({
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor={`url-${name}`}>Link หรือชื่อเพจ</Label>
+          <Label htmlFor={`name-${platformKey}`}>ชื่อเพจ/บัญชี (ไม่บังคับ)</Label>
+          <Input
+            id={`name-${platformKey}`}
+            value={pageName}
+            onChange={(e) => setPageName(e.target.value)}
+            placeholder="ระบุชื่อเพื่อให้จำง่าย"
+            disabled={isLoading}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor={`url-${platformKey}`}>Link หรือ URL *</Label>
           <div className="relative">
             <ExternalLink className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              id={`url-${name}`}
+              id={`url-${platformKey}`}
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder={placeholder}
               className="pl-10"
               disabled={isLoading}
+              required
             />
           </div>
         </div>
